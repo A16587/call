@@ -6,6 +6,8 @@
 
 <title>مساعد العيادة الذكي</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
 
 *{
@@ -17,7 +19,7 @@ font-family:"Cairo",sans-serif;
 
 body{
 height:100vh;
-background:linear-gradient(135deg,#e6f4f7,#cfe8ef);
+background:linear-gradient(135deg,#eaf6f9,#d8eef3);
 display:flex;
 flex-direction:column;
 align-items:center;
@@ -26,51 +28,50 @@ align-items:center;
 /* HEADER */
 
 .header{
-margin-top:35px;
-font-size:26px;
+margin-top:30px;
+font-size:28px;
 color:#0b5d6b;
-font-weight:bold;
+font-weight:600;
 }
 
-/* CHAT */
+/* CHAT AREA */
 
 .chat-container{
 flex:1;
 width:100%;
 max-width:800px;
+padding:20px;
 display:flex;
 flex-direction:column;
 justify-content:flex-end;
-padding:20px;
 }
 
 .messages{
-width:100%;
 display:flex;
 flex-direction:column;
-gap:10px;
-margin-bottom:110px;
+gap:12px;
+margin-bottom:120px;
 }
 
-/* MESSAGE */
+/* MESSAGE BUBBLE */
 
 .message{
 max-width:70%;
 padding:14px 18px;
-border-radius:18px;
-font-size:16px;
+border-radius:20px;
+font-size:17px;
 background:#2fa4b7;
 color:white;
 align-self:flex-end;
-line-height:1.6;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
+line-height:1.7;
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
 }
 
 /* SUGGESTIONS */
 
 .suggestions{
 position:fixed;
-bottom:95px;
+bottom:100px;
 display:flex;
 flex-wrap:wrap;
 gap:10px;
@@ -81,10 +82,10 @@ max-width:700px;
 
 .suggestion{
 border:2px solid #7ec7d8;
-padding:9px 16px;
+padding:10px 16px;
 border-radius:30px;
 cursor:pointer;
-background:rgba(255,255,255,0.7);
+background:white;
 color:#0b5d6b;
 font-size:14px;
 }
@@ -94,20 +95,25 @@ background:#7ec7d8;
 color:white;
 }
 
-/* FLOATING DOCK */
+/* DOCK */
 
 .input-dock{
 position:fixed;
-bottom:30px;
+bottom:25px;
 left:50%;
 transform:translateX(-50%);
 width:90%;
 max-width:700px;
-background:rgba(255,255,255,0.7);
+
+background:rgba(255,255,255,0.9);
 backdrop-filter:blur(10px);
+
 padding:10px;
+
 border-radius:30px;
+
 box-shadow:0 10px 30px rgba(0,0,0,0.15);
+
 display:flex;
 gap:10px;
 align-items:flex-end;
@@ -121,18 +127,26 @@ border:none;
 outline:none;
 resize:none;
 background:transparent;
-font-size:16px;
+
+font-size:17px;
 padding:10px;
-max-height:120px;
-line-height:1.5;
+
+line-height:1.6;
+
+min-height:40px;
+
+max-height: calc(1.6em * 12);
+
 overflow-y:auto;
+
+word-break:break-word;
 }
 
 /* BUTTONS */
 
 .btn{
-width:45px;
-height:45px;
+width:46px;
+height:46px;
 border:none;
 border-radius:50%;
 cursor:pointer;
@@ -164,18 +178,20 @@ color:white;
 <div class="header">مساعد العيادة الذكي</div>
 
 <div class="chat-container">
-
 <div class="messages" id="messages"></div>
-
 </div>
 
+<!-- SUGGESTIONS -->
+
 <div class="suggestions">
+
 <div class="suggestion">حجز موعد</div>
 <div class="suggestion">مواعيد العيادة</div>
 <div class="suggestion">أسعار الكشف</div>
 <div class="suggestion">الأعراض</div>
 <div class="suggestion">الأدوية</div>
 <div class="suggestion">التحاليل المطلوبة</div>
+
 </div>
 
 <!-- DOCK -->
@@ -186,8 +202,8 @@ color:white;
 
 <textarea
 id="userInput"
-rows="1"
 placeholder="اكتب سؤالك..."
+rows="1"
 ></textarea>
 
 <button class="btn send-btn" onclick="sendMessage()">➤</button>
@@ -196,18 +212,31 @@ placeholder="اكتب سؤالك..."
 
 <script>
 
-/* AUTO EXPAND TEXTAREA */
+/* textarea auto expand */
 
 const textarea = document.getElementById("userInput")
 
 textarea.addEventListener("input",()=>{
 
 textarea.style.height="auto"
+
+let lineHeight=parseFloat(getComputedStyle(textarea).lineHeight)
+
+let maxHeight=lineHeight*12
+
+if(textarea.scrollHeight <= maxHeight){
+
 textarea.style.height=textarea.scrollHeight+"px"
+
+}else{
+
+textarea.style.height=maxHeight+"px"
+
+}
 
 })
 
-/* SEND MESSAGE */
+/* send message */
 
 function sendMessage(){
 
@@ -226,22 +255,42 @@ msg.innerText=text
 messages.appendChild(msg)
 
 textarea.value=""
+
 textarea.style.height="auto"
 
 messages.scrollTop=messages.scrollHeight
 
 }
 
-/* SUGGESTIONS */
+/* suggestions */
 
 document.querySelectorAll(".suggestion").forEach(btn=>{
+
 btn.onclick=()=>{
+
 textarea.value=btn.innerText
+
 textarea.focus()
+
 }
+
 })
 
-/* VOICE */
+/* enter send */
+
+textarea.addEventListener("keydown",(e)=>{
+
+if(e.key==="Enter" && e.ctrlKey){
+
+e.preventDefault()
+
+sendMessage()
+
+}
+
+})
+
+/* voice recognition */
 
 let micBtn=document.getElementById("micBtn")
 
@@ -249,7 +298,9 @@ const SpeechRecognition =
 window.SpeechRecognition ||
 window.webkitSpeechRecognition
 
-const recognition = new SpeechRecognition()
+if(SpeechRecognition){
+
+const recognition=new SpeechRecognition()
 
 recognition.lang="ar-EG"
 recognition.interimResults=true
@@ -262,13 +313,17 @@ micBtn.onclick=()=>{
 if(!recording){
 
 recognition.start()
+
 micBtn.classList.add("recording")
+
 recording=true
 
 }else{
 
 recording=false
+
 recognition.stop()
+
 micBtn.classList.remove("recording")
 
 }
@@ -280,7 +335,9 @@ recognition.onresult=function(event){
 let transcript=""
 
 for(let i=0;i<event.results.length;i++){
+
 transcript+=event.results[i][0].transcript
+
 }
 
 textarea.value=transcript
@@ -291,6 +348,8 @@ recognition.onend=function(){
 
 if(recording){
 recognition.start()
+}
+
 }
 
 }
