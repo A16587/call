@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>مساعد العيادة الذكي</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:"Cairo",sans-serif;
+}
+
+body{
+height:100vh;
+background:linear-gradient(135deg,#e6f4f7,#cfe8ef);
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+/* HEADER */
+
+.header{
+margin-top:40px;
+font-size:26px;
+color:#0b5d6b;
+font-weight:bold;
+}
+
+/* CHAT AREA */
+
+.chat-container{
+flex:1;
+width:100%;
+max-width:800px;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+padding:20px;
+}
+
+.welcome{
+font-size:20px;
+color:#0b5d6b;
+margin-bottom:30px;
+}
+
+.suggestions{
+display:flex;
+flex-wrap:wrap;
+gap:12px;
+justify-content:center;
+margin-bottom:30px;
+}
+
+.suggestion{
+border:2px solid #7ec7d8;
+padding:10px 18px;
+border-radius:30px;
+cursor:pointer;
+background:rgba(255,255,255,0.6);
+color:#0b5d6b;
+transition:.3s;
+font-size:16px;
+backdrop-filter:blur(5px);
+}
+
+.suggestion:hover{
+background:#7ec7d8;
+color:white;
+}
+
+.messages{
+width:100%;
+max-width:700px;
+margin-bottom:120px;
+}
+
+.message{
+background:white;
+padding:14px;
+border-radius:12px;
+margin-bottom:10px;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
+font-size:17px;
+}
+
+/* FLOATING DOCK */
+
+.input-dock{
+position:fixed;
+bottom:30px;
+left:50%;
+transform:translateX(-50%);
+width:90%;
+max-width:700px;
+background:rgba(255,255,255,0.6);
+backdrop-filter:blur(10px);
+padding:12px;
+border-radius:40px;
+box-shadow:0 10px 30px rgba(0,0,0,0.15);
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+.input-dock input{
+flex:1;
+border:none;
+outline:none;
+background:transparent;
+font-size:17px;
+padding:10px;
+}
+
+.btn{
+width:50px;
+height:50px;
+border:none;
+border-radius:50%;
+cursor:pointer;
+font-size:20px;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.send-btn{
+background:#2fa4b7;
+color:white;
+}
+
+.send-btn:hover{
+background:#238a9c;
+}
+
+.mic-btn{
+background:#f1f1f1;
+}
+
+.mic-btn.recording{
+background:red;
+color:white;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">مساعد العيادة الذكي</div>
+
+<div class="chat-container">
+
+<div class="welcome">
+👋 أهلاً بك، كيف يمكنني مساعدتك اليوم؟
+</div>
+
+<div class="suggestions">
+<div class="suggestion">حجز موعد</div>
+<div class="suggestion">مواعيد العيادة</div>
+<div class="suggestion">أسعار الكشف</div>
+<div class="suggestion">الأعراض</div>
+<div class="suggestion">الأدوية</div>
+<div class="suggestion">التحاليل المطلوبة</div>
+</div>
+
+<div class="messages" id="messages"></div>
+
+</div>
+
+<div class="input-dock">
+
+<button class="btn mic-btn" id="micBtn">🎤</button>
+
+<input
+type="text"
+id="userInput"
+placeholder="اكتب أو تحدث..."
+>
+
+<button class="btn send-btn" onclick="sendMessage()">➤</button>
+
+</div>
+
+<script>
+
+/* SEND MESSAGE */
+
+function sendMessage(){
+
+let input=document.getElementById("userInput")
+let text=input.value.trim()
+
+if(text==="") return
+
+let messages=document.getElementById("messages")
+
+let msg=document.createElement("div")
+msg.className="message"
+msg.innerText=text
+
+messages.appendChild(msg)
+
+input.value=""
+
+window.scrollTo(0,document.body.scrollHeight)
+
+}
+
+/* SUGGESTIONS */
+
+document.querySelectorAll(".suggestion").forEach(btn=>{
+btn.onclick=()=>{
+document.getElementById("userInput").value=btn.innerText
+}
+})
+
+/* VOICE SYSTEM */
+
+let micBtn=document.getElementById("micBtn")
+
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition
+
+const recognition = new SpeechRecognition()
+
+recognition.lang="ar-EG"
+recognition.interimResults=true
+recognition.continuous=true
+
+let recording=false
+
+micBtn.onclick=()=>{
+
+if(!recording){
+
+recognition.start()
+micBtn.classList.add("recording")
+recording=true
+
+}else{
+
+recording=false
+recognition.stop()
+micBtn.classList.remove("recording")
+
+}
+
+}
+
+/* RESULT */
+
+recognition.onresult=function(event){
+
+let transcript=""
+
+for(let i=0;i<event.results.length;i++){
+transcript+=event.results[i][0].transcript
+}
+
+document.getElementById("userInput").value=transcript
+
+}
+
+/* IMPORTANT: restart automatically */
+
+recognition.onend=function(){
+
+if(recording){
+recognition.start()
+}
+
+}
+
+</script>
+
+</body>
+</html>
