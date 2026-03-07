@@ -26,13 +26,13 @@ align-items:center;
 /* HEADER */
 
 .header{
-margin-top:40px;
+margin-top:35px;
 font-size:26px;
 color:#0b5d6b;
 font-weight:bold;
 }
 
-/* CHAT AREA */
+/* CHAT */
 
 .chat-container{
 flex:1;
@@ -40,55 +40,58 @@ width:100%;
 max-width:800px;
 display:flex;
 flex-direction:column;
-align-items:center;
-justify-content:center;
+justify-content:flex-end;
 padding:20px;
 }
 
-.welcome{
-font-size:20px;
-color:#0b5d6b;
-margin-bottom:30px;
+.messages{
+width:100%;
+display:flex;
+flex-direction:column;
+gap:10px;
+margin-bottom:110px;
 }
 
+/* MESSAGE */
+
+.message{
+max-width:70%;
+padding:14px 18px;
+border-radius:18px;
+font-size:16px;
+background:#2fa4b7;
+color:white;
+align-self:flex-end;
+line-height:1.6;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* SUGGESTIONS */
+
 .suggestions{
+position:fixed;
+bottom:95px;
 display:flex;
 flex-wrap:wrap;
-gap:12px;
+gap:10px;
 justify-content:center;
-margin-bottom:30px;
+width:90%;
+max-width:700px;
 }
 
 .suggestion{
 border:2px solid #7ec7d8;
-padding:10px 18px;
+padding:9px 16px;
 border-radius:30px;
 cursor:pointer;
-background:rgba(255,255,255,0.6);
+background:rgba(255,255,255,0.7);
 color:#0b5d6b;
-transition:.3s;
-font-size:16px;
-backdrop-filter:blur(5px);
+font-size:14px;
 }
 
 .suggestion:hover{
 background:#7ec7d8;
 color:white;
-}
-
-.messages{
-width:100%;
-max-width:700px;
-margin-bottom:120px;
-}
-
-.message{
-background:white;
-padding:14px;
-border-radius:12px;
-margin-bottom:10px;
-box-shadow:0 4px 12px rgba(0,0,0,0.08);
-font-size:17px;
 }
 
 /* FLOATING DOCK */
@@ -100,32 +103,40 @@ left:50%;
 transform:translateX(-50%);
 width:90%;
 max-width:700px;
-background:rgba(255,255,255,0.6);
+background:rgba(255,255,255,0.7);
 backdrop-filter:blur(10px);
-padding:12px;
-border-radius:40px;
+padding:10px;
+border-radius:30px;
 box-shadow:0 10px 30px rgba(0,0,0,0.15);
 display:flex;
 gap:10px;
-align-items:center;
+align-items:flex-end;
 }
 
-.input-dock input{
+/* TEXTAREA */
+
+textarea{
 flex:1;
 border:none;
 outline:none;
+resize:none;
 background:transparent;
-font-size:17px;
+font-size:16px;
 padding:10px;
+max-height:120px;
+line-height:1.5;
+overflow-y:auto;
 }
 
+/* BUTTONS */
+
 .btn{
-width:50px;
-height:50px;
+width:45px;
+height:45px;
 border:none;
 border-radius:50%;
 cursor:pointer;
-font-size:20px;
+font-size:18px;
 display:flex;
 align-items:center;
 justify-content:center;
@@ -134,10 +145,6 @@ justify-content:center;
 .send-btn{
 background:#2fa4b7;
 color:white;
-}
-
-.send-btn:hover{
-background:#238a9c;
 }
 
 .mic-btn{
@@ -158,8 +165,8 @@ color:white;
 
 <div class="chat-container">
 
-<div class="welcome">
-👋 أهلاً بك، كيف يمكنني مساعدتك اليوم؟
+<div class="messages" id="messages"></div>
+
 </div>
 
 <div class="suggestions">
@@ -171,19 +178,17 @@ color:white;
 <div class="suggestion">التحاليل المطلوبة</div>
 </div>
 
-<div class="messages" id="messages"></div>
-
-</div>
+<!-- DOCK -->
 
 <div class="input-dock">
 
 <button class="btn mic-btn" id="micBtn">🎤</button>
 
-<input
-type="text"
+<textarea
 id="userInput"
-placeholder="اكتب أو تحدث..."
->
+rows="1"
+placeholder="اكتب سؤالك..."
+></textarea>
 
 <button class="btn send-btn" onclick="sendMessage()">➤</button>
 
@@ -191,26 +196,39 @@ placeholder="اكتب أو تحدث..."
 
 <script>
 
+/* AUTO EXPAND TEXTAREA */
+
+const textarea = document.getElementById("userInput")
+
+textarea.addEventListener("input",()=>{
+
+textarea.style.height="auto"
+textarea.style.height=textarea.scrollHeight+"px"
+
+})
+
 /* SEND MESSAGE */
 
 function sendMessage(){
 
-let input=document.getElementById("userInput")
-let text=input.value.trim()
+let text=textarea.value.trim()
 
 if(text==="") return
 
 let messages=document.getElementById("messages")
 
 let msg=document.createElement("div")
+
 msg.className="message"
+
 msg.innerText=text
 
 messages.appendChild(msg)
 
-input.value=""
+textarea.value=""
+textarea.style.height="auto"
 
-window.scrollTo(0,document.body.scrollHeight)
+messages.scrollTop=messages.scrollHeight
 
 }
 
@@ -218,11 +236,12 @@ window.scrollTo(0,document.body.scrollHeight)
 
 document.querySelectorAll(".suggestion").forEach(btn=>{
 btn.onclick=()=>{
-document.getElementById("userInput").value=btn.innerText
+textarea.value=btn.innerText
+textarea.focus()
 }
 })
 
-/* VOICE SYSTEM */
+/* VOICE */
 
 let micBtn=document.getElementById("micBtn")
 
@@ -256,8 +275,6 @@ micBtn.classList.remove("recording")
 
 }
 
-/* RESULT */
-
 recognition.onresult=function(event){
 
 let transcript=""
@@ -266,11 +283,9 @@ for(let i=0;i<event.results.length;i++){
 transcript+=event.results[i][0].transcript
 }
 
-document.getElementById("userInput").value=transcript
+textarea.value=transcript
 
 }
-
-/* IMPORTANT: restart automatically */
 
 recognition.onend=function(){
 
