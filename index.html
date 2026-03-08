@@ -67,6 +67,54 @@ line-height:1.7;
 box-shadow:0 4px 12px rgba(0,0,0,0.1);
 }
 
+/* رسالة الخطأ */
+.message.error{
+background:#dc3545;
+align-self:flex-start;
+}
+
+/* رسالة النظام (الردود) */
+.message.system{
+background:#28a745;
+align-self:flex-start;
+}
+
+/* رسالة جاري الكتابة */
+.message.typing{
+background:#95a5a6;
+align-self:flex-start;
+opacity:0.8;
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    display: inline-block;
+    animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.6; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
 /* SUGGESTIONS */
 
 .suggestions{
@@ -154,11 +202,17 @@ font-size:18px;
 display:flex;
 align-items:center;
 justify-content:center;
+transition:all 0.3s ease;
 }
 
 .send-btn{
 background:#2fa4b7;
 color:white;
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .mic-btn{
@@ -206,92 +260,233 @@ placeholder="اكتب سؤالك..."
 rows="1"
 ></textarea>
 
-<button class="btn send-btn" onclick="sendMessage()">➤</button>
+<button class="btn send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
 
 </div>
 
 <script>
 
-/* textarea auto expand */
+/* Webhook URL */
+const WEBHOOK_URL = 'https://kalmeron.app.n8n.cloud/webhook/aleman-chat';
 
+/* textarea auto expand */
 const textarea = document.getElementById("userInput")
+const sendButton = document.getElementById("sendBtn")
 
 textarea.addEventListener("input",()=>{
-
 textarea.style.height="auto"
-
 let lineHeight=parseFloat(getComputedStyle(textarea).lineHeight)
-
 let maxHeight=lineHeight*12
-
 if(textarea.scrollHeight <= maxHeight){
-
 textarea.style.height=textarea.scrollHeight+"px"
-
 }else{
-
 textarea.style.height=maxHeight+"px"
-
 }
-
 })
 
+/* متغيرات للتحكم في حالة الكتابة */
+let typingMessageElement = null;
+let isWaitingForResponse = false;
+
+/* دالة لعرض مؤشر جاري الكتابة */
+function showTypingIndicator() {
+    // لو في مؤشر قديم، نشيله
+    if (typingMessageElement) {
+        typingMessageElement.remove();
+    }
+    
+    let messages = document.getElementById("messages")
+    typingMessageElement = document.createElement("div")
+    typingMessageElement.className = "message typing"
+    
+    // إضافة مؤشر الكتابة المتحرك
+    typingMessageElement.innerHTML = `
+        <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    `
+    
+    messages.appendChild(typingMessageElement)
+    messages.scrollTop = messages.scrollHeight
+    
+    // تعطيل زر الإرسال
+    sendButton.disabled = true;
+    isWaitingForResponse = true;
+}
+
+/* دالة لإخفاء مؤشر جاري الكتابة */
+function hideTypingIndicator() {
+    if (typingMessageElement) {
+        typingMessageElement.remove();
+        typingMessageElement = null;
+    }
+    // تفعيل زر الإرسال
+    sendButton.disabled = false;
+    isWaitingForResponse = false;
+}
+
+/* دالة لعرض رسائل الخطأ */
+function showError(message) {
+    hideTypingIndicator(); // إخفاء مؤشر الكتابة أولاً
+    
+    let messages = document.getElementById("messages")
+    let errorMsg = document.createElement("div")
+    errorMsg.className = "message error"
+    errorMsg.innerText = "❌ " + message
+    messages.appendChild(errorMsg)
+    messages.scrollTop = messages.scrollHeight
+}
+
+/* دالة لعرض رسائل النظام */
+function showSystemMessage(message) {
+    hideTypingIndicator(); // إخفاء مؤشر الكتابة أولاً
+    
+    let messages = document.getElementById("messages")
+    let systemMsg = document.createElement("div")
+    systemMsg.className = "message system"
+    systemMsg.innerText = message
+    messages.appendChild(systemMsg)
+    messages.scrollTop = messages.scrollHeight
+}
+
+/* دالة لاستخراج الرد من أي تنسيق */
+function extractResponse(data) {
+    console.log("الرد من الخادم:", data);
+    
+    if (typeof data === 'string') {
+        return data;
+    }
+    
+    if (data.output) return data.output;
+    if (data.response) return data.response;
+    if (data.message) return data.message;
+    if (data.text) return data.text;
+    if (data.reply) return data.reply;
+    if (data.answer) return data.answer;
+    if (data.content) return data.content;
+    if (data.data) return extractResponse(data.data);
+    
+    if (Array.isArray(data)) {
+        return data.map(item => extractResponse(item)).join('\n');
+    }
+    
+    const keys = Object.keys(data);
+    if (keys.length === 1) {
+        const value = data[keys[0]];
+        if (typeof value === 'string') {
+            return value;
+        }
+    }
+    
+    try {
+        return JSON.stringify(data, null, 2);
+    } catch {
+        return null;
+    }
+}
+
+/* إرسال الرسالة إلى Webhook */
+async function sendToWebhook(message) {
+    try {
+        // عرض مؤشر جاري الكتابة
+        showTypingIndicator();
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const response = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                chatId: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                sessionId: localStorage.getItem('sessionId') || 'web-' + Date.now()
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('رابط Webhook غير صحيح');
+            } else if (response.status >= 500) {
+                throw new Error('الخادم لا يستجيب');
+            } else {
+                throw new Error(`خطأ في الخادم: ${response.status}`);
+            }
+        }
+
+        const data = await response.json();
+        
+        // استخراج الرد
+        const reply = extractResponse(data);
+        
+        if (reply) {
+            showSystemMessage(reply);
+        } else {
+            showSystemMessage("تم الاستلام. انتظر رد المساعد...");
+            console.log("تنسيق غير معروف:", data);
+        }
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            showError('انتهت مهلة الاتصال. الخادم بطيء');
+        } else if (error.message.includes('Failed to fetch')) {
+            showError('فشل الاتصال بالخادم');
+        } else {
+            showError(error.message);
+        }
+        console.error('Webhook Error:', error);
+    }
+}
+
 /* send message */
-
 function sendMessage(){
+    // منع الإرسال إذا كان في انتظار رد
+    if (isWaitingForResponse) {
+        return;
+    }
+    
+    let text = textarea.value.trim()
+    if(text === "") return
 
-let text=textarea.value.trim()
+    let messages = document.getElementById("messages")
+    let msg = document.createElement("div")
+    msg.className = "message"
+    msg.innerText = text
+    messages.appendChild(msg)
 
-if(text==="") return
+    textarea.value = ""
+    textarea.style.height = "auto"
+    messages.scrollTop = messages.scrollHeight
 
-let messages=document.getElementById("messages")
-
-let msg=document.createElement("div")
-
-msg.className="message"
-
-msg.innerText=text
-
-messages.appendChild(msg)
-
-textarea.value=""
-
-textarea.style.height="auto"
-
-messages.scrollTop=messages.scrollHeight
-
+    // إرسال إلى Webhook
+    sendToWebhook(text);
 }
 
 /* suggestions */
-
 document.querySelectorAll(".suggestion").forEach(btn=>{
-
 btn.onclick=()=>{
-
 textarea.value=btn.innerText
-
 textarea.focus()
-
 }
-
 })
 
 /* enter send */
-
 textarea.addEventListener("keydown",(e)=>{
-
 if(e.key==="Enter" && e.ctrlKey){
-
 e.preventDefault()
-
 sendMessage()
-
 }
-
 })
 
 /* voice recognition */
-
 let micBtn=document.getElementById("micBtn")
 
 const SpeechRecognition =
@@ -301,7 +496,6 @@ window.webkitSpeechRecognition
 if(SpeechRecognition){
 
 const recognition=new SpeechRecognition()
-
 recognition.lang="ar-EG"
 recognition.interimResults=true
 recognition.continuous=true
@@ -309,49 +503,37 @@ recognition.continuous=true
 let recording=false
 
 micBtn.onclick=()=>{
-
 if(!recording){
-
 recognition.start()
-
 micBtn.classList.add("recording")
-
 recording=true
-
 }else{
-
 recording=false
-
 recognition.stop()
-
 micBtn.classList.remove("recording")
-
 }
-
 }
 
 recognition.onresult=function(event){
-
 let transcript=""
-
 for(let i=0;i<event.results.length;i++){
-
 transcript+=event.results[i][0].transcript
-
 }
-
 textarea.value=transcript
-
 }
 
 recognition.onend=function(){
-
 if(recording){
 recognition.start()
 }
-
 }
 
+} else {
+    micBtn.style.opacity = "0.5";
+    micBtn.title = "المتصفح لا يدعم التعرف على الصوت";
+    micBtn.onclick = () => {
+        showError("المتصفح لا يدعم خاصية التعرف على الصوت");
+    }
 }
 
 </script>
